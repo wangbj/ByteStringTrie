@@ -7,6 +7,8 @@ module Trie (
   , insert
   , singleton
   , assocs
+  , keys
+  , elems
   , insertWith
   , fromList
   , fromListWith
@@ -14,6 +16,7 @@ module Trie (
   , notMember
   , size
   , null
+  , lookup
   ) where
 
 import qualified Data.ByteString.Char8 as C
@@ -28,7 +31,7 @@ import Control.Arrow
 import Control.Monad.Writer
 import Data.Monoid
 import Data.Char
-import Prelude hiding (null)
+import Prelude hiding (null, lookup, elems)
 
 newtype Trie a = Trie {
   unTrie :: IntMap (Maybe a, Trie a)
@@ -41,6 +44,13 @@ member (C.uncons -> Just (c, cs)) (Trie t) = case IntMap.lookup (ord c) t of
   Nothing -> False
   Just (_, tr) -> member cs tr
 notMember s = not . member s
+
+lookup bs = go Nothing bs
+  where go r s (Trie t) = case C.uncons s of
+          Nothing -> r
+          Just (c, cs) -> case IntMap.lookup (ord c) t of
+            Nothing -> Nothing
+            Just (v, tr) -> go v cs tr
 
 insertWith f (C.uncons -> Nothing) v t = t
 insertWith f (C.uncons -> Just (c, cs)) v (Trie t)
@@ -78,6 +88,8 @@ consM m k (Just v, t) = tell (Seq.singleton ((L.toStrict . toLazyByteString) m',
   where m' = m <> char8 (chr k)
 
 assocs t = F.toList $ execWriter (cons mempty t)
+keys = fmap fst . assocs
+elems = fmap snd . assocs
 
 instance (Show a) => Show (Trie a) where
   show t = show $ execWriter (cons mempty t)
